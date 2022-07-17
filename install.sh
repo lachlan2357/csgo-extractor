@@ -17,12 +17,12 @@ if ".csgo-extractor" in os.listdir(homedir):
     replace = input(f"  \u21B3 Existing download of CSGO Extractor found at {os.path.join(homedir, '.csgo-extractor')}. Do you want to replace it [y/N]? ")
     if (replace.lower() == "y"):
         pass
-        #shutil.rmtree(os.path.expanduser(f"{homedir}/.csgo-extractor"))
+        shutil.rmtree(os.path.expanduser(f"{homedir}/.csgo-extractor"))
     else:
         print("  \u21B3 Not replaceing install. Exiting.")
         exit()
 
-#os.system(f"git clone -q https://github.com/lachlan2357/csgo-extractor {homedir}/.csgo-extractor")
+os.system(f"git clone -q https://github.com/lachlan2357/csgo-extractor {homedir}/.csgo-extractor")
 os.system(f"chown -R {os.environ.get('SUDO_USER')}:{os.environ.get('SUDO_USER')} {homedir}/.csgo-extractor")
 
 # check cloned code for required files
