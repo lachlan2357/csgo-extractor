@@ -30,7 +30,7 @@ There are currently two ways to use the tool.
 4. Execute that command.
 
 ### Installer File | Linux
-1. Download the specific ```install.sh``` file from the releases tab.
+1. Download the specific ```install.sh``` file from [here](https://raw.githubusercontent.com/lachlan2357/csgo-extractor/main/install.sh) or by running ```$ wget https://raw.githubusercontent.com/lachlan2357/csgo-extractor/main/install.sh```.
 2. Ensure the file has permission to execute, changed through right clicking on it in your file manager and heading to the permissions tab, or by running ```$ sudo chmod +x install.sh``` in the directory.
 3. Run the script.
 4. If no errors occurred, you should have a ```csgo-extractor``` command. available. Ensure you use this command inside your CSGO install directory. 
