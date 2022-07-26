@@ -18,12 +18,13 @@ if ("csgo" not in os.listdir() and "cstrike15" in os.listdir()):
 
 # classes
 class settings:
-    version = "0.1"
-    builddate = "17/07/2022"
+    version = "0.1.1"
+    builddate = "26/07/2022"
     description = "CSGO Exporter reads game files to produce data about a specific build."
     helpcommands = {
         "-h, --help": "Display this help menu.",
-        "-w, --warnings": "Displays warning messages. Can be useful for debugging."
+        "-w, --warnings": "Displays warning messages. Can be useful for debugging.",
+        "-s, --setup": "Displays steps to setup and use the tool."
     }
     warnings = False
     pydir = os.path.dirname(os.path.abspath(__file__))
@@ -692,7 +693,6 @@ class extract:
                         lookupname = "CSGO_set_Gamma_2[0]"
 
                     setname = fileobjs["csgo_english"]["lang[0]"]["Tokens[0]"][lookupname]
-                    print(setname)
                     
                     if (setkey in obj.keys()):
                         output.warn("Key overwritten.")
@@ -881,8 +881,11 @@ if ("-s" in sys.argv or "--setup" in sys.argv):
     print(f"Setup Steps:\n1. Locate your CSGO Folder in your file manager.\n2. Right Click --> {userterminal}.\n3. Type the command 'python' followed by a space, but don't press enter. \n4. Locate this script in your file manager.\n5. Drag this file onto the terminal window. Execute the command.")
     exit()
 
-# global file imports & processing
+# check directory to see if it is a csgo directory
 output.check("directory")
+if ("csgo" not in os.listdir() and "cstrike15" not in os.listdir()):
+    output.error("This directory does not seem to contain a CSGO Install. Please find your CSGO Install directory and run this program from there.", True)
+
 filelist = {
     "csgo/bspconvar_whitelist.txt": {
         "directory": False,
@@ -991,6 +994,7 @@ for path in filelist:
     }
 output.done()
 
+# global file imports & processing
 output.process("file")
 for file in filelist:
     if (filelist[file]["directory"]):
@@ -1021,16 +1025,28 @@ data["GameModesConfigs"] = extract.gamemodesconfigs()
 data["DefaultConfig"] = extract.defaultconfig()
 data["MusicKits"] = extract.musickits()
 
-
 # output
+print("\n")
 if ("output" not in os.listdir(settings.pydir)):
     os.mkdir(os.path.join(settings.pydir, "output"))
-outputfile = open(f"{settings.pydir}/output/data.json", "w")
+
+filename = "data.json"
+
+if (filename in os.listdir(os.path.join(settings.pydir, "output"))):
+    overwrite = input("Data previously outputted, do you want to overwrite file? (y/N) ")
+
+    if (overwrite.lower() != "y"):
+        counter = 0
+        while (f"data-{counter}.json" in os.listdir(os.path.join(settings.pydir, "output"))):
+            counter += 1
+        filename = f"data-{counter}.json"
+
+outputfile = open(f"{settings.pydir}/output/{filename}", "w")
 outputfile.write(json.dumps(data))
 outputfile.close()
 patchversion = data["Build"]["PatchVersion"]
-fullpath = os.path.join(settings.pydir, "output", "data.json")
-print(f"\nOutput file for CSGO Patch Version {patchversion} at {terminal.style.dim}{fullpath}{terminal.style.reset}")
+fullpath = os.path.join(settings.pydir, "output", filename)
+print(f"Output file for CSGO Patch Version {patchversion} at {terminal.style.dim}{fullpath}{terminal.style.reset}")
 
 # open directory dialog
 input = input("Open Directory? (y/N): ")
