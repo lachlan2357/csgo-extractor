@@ -29,7 +29,7 @@ class settings:
         "-w, --warnings": "Displays warning messages. Can be useful for debugging.",
         "-s, --setup": "Displays steps to setup and use the tool.",
         "-d, --directory": "Specifies a CSGO install directory (uses current directory if flag not present).",
-        "-q, -- quiet": "Quiet Mode. Disables all console outputs and does not overwrite previous exports and does not open directory on completion."
+        "-q, -- quiet": "Quiet Mode. Disables all console outputs, does not overwrite previous exports and does not open directory on completion."
     }
     warnings = False
     quiet = False
