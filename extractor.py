@@ -10,23 +10,29 @@ import subprocess
 files = {}
 fileobjs = {}
 data = {}
+languages = []
 
 # cstrike15 mode
 cstrike15 = False
+csgofolder = "csgo"
 if ("csgo" not in os.listdir() and "cstrike15" in os.listdir()):
     cstrike15 = True
+    csgofolder = "cstrike15"
 
 # classes
 class settings:
-    version = "0.1.1"
-    builddate = "26/07/2022"
+    version = "0.2"
+    builddate = "31/07/2022"
     description = "CSGO Exporter reads game files to produce data about a specific build."
     helpcommands = {
         "-h, --help": "Display this help menu.",
         "-w, --warnings": "Displays warning messages. Can be useful for debugging.",
-        "-s, --setup": "Displays steps to setup and use the tool."
+        "-s, --setup": "Displays steps to setup and use the tool.",
+        "-d, --directory": "Specifies a CSGO install directory (uses current directory if flag not present).",
+        "-q, -- quiet": "Quiet Mode. Disables all console outputs and does not overwrite previous exports and does not open directory on completion."
     }
     warnings = False
+    quiet = False
     pydir = os.path.dirname(os.path.abspath(__file__))
 
 class terminalsettings:
@@ -81,30 +87,46 @@ class terminal:
 
 class output:
     def start(name:str):
+        #if (settings.quiet):
+            #return
         print(f"- Extracting {name} info ...", end = None)
         return
 
     def done():
+        if (settings.quiet):
+            return
         output.donetask = True
         print("  \u21B3 Done.")
 
     def failed():
+        if (settings.quiet):
+            return
         print(f"{terminal.color.red}  \u21B3 Failed.{terminal.color.reset}")
 
     def check(name:str):
+        if (settings.quiet):
+            return
         print(f"- Checking {name} info ...")
 
     def process(name:str):
+        if (settings.quiet):
+            return
         print(f"- Processing {name} info ...")
     
     def regular(text:str):
+        if (settings.quiet):
+            return
         print(f"  \u21B3 {text}")
     
     def warn(warning:str, persistant:bool = False):
+        if (settings.quiet):
+            return
         if (settings.warnings or persistant):
             print(f"{terminal.color.yellow}  \u21B3 {warning}{terminal.color.reset}")
     
     def error(error:str, terminate:bool = False):
+        if (settings.quiet):
+            return
         print(f"{terminal.color.red}  \u21B3 {error}{terminal.color.reset}")
         if terminate:
             print("- Exiting ... ")
@@ -119,6 +141,10 @@ class csgofile:
             return text
 
         while (text[0] == "\t" or text[0] == " "):
+            if len(text) == 1 and (text[0] in ["\t", " "]):
+                text = ""
+                break
+            
             text = text[1:]
 
         return text
@@ -754,10 +780,15 @@ class extract:
         obj = {}
 
         for name in names:
-            token = fileobjs["csgo_english"]["lang[0]"]["Tokens[0]"][f"{name}[0]"]
-            obj[name] = {
-                "english": token
-            }
+            langobj = {}
+            for lang in languages:
+                key = f"csgo_{lang}"
+                if f"{name}[0]" not in fileobjs[key]["lang[0]"]["Tokens[0]"].keys():
+                    token = fileobjs["csgo_english"]["lang[0]"]["Tokens[0]"][f"{name}[0]"]
+                else:
+                    token = fileobjs[key]["lang[0]"]["Tokens[0]"][f"{name}[0]"]
+                langobj[lang] = token
+            obj[name] = langobj
 
         output.done()
         return obj
@@ -856,7 +887,8 @@ class extract:
         output.done()
         return obj
 
-print(f"CSGO Exporter v{settings.version}\nBuild Date {settings.builddate}\n")
+if (not settings.quiet):
+    print(f"CSGO Exporter v{settings.version}\nBuild Date {settings.builddate}\n")
 
 # switches
 if ("-h" in sys.argv or "--help" in sys.argv):
@@ -880,6 +912,28 @@ if ("-s" in sys.argv or "--setup" in sys.argv):
     userterminal = terminaltype.get(platform.uname().system, "Open in Terminal")
     print(f"Setup Steps:\n1. Locate your CSGO Folder in your file manager.\n2. Right Click --> {userterminal}.\n3. Type the command 'python' followed by a space, but don't press enter. \n4. Locate this script in your file manager.\n5. Drag this file onto the terminal window. Execute the command.")
     exit()
+
+if ("-d" in sys.argv or "--directory" in sys.argv):
+    output.process("directory change")
+    index = -1
+    if ("-d" in sys.argv):
+        index = sys.argv.index("-d") + 1
+    else:
+        index = sys.argv.index("--directory") + 1
+
+    if index >= len(sys.argv):
+        output.error("No directory specified.", True)
+
+    newdir = sys.argv[index]
+    try:
+        os.chdir(newdir)
+    except:
+        output.error("Directory could not be found", True)
+    
+    output.done()
+
+if ("-q" in sys.argv or "--quiet" in sys.argv):
+    quiet = True
 
 # check directory to see if it is a csgo directory
 output.check("directory")
@@ -917,10 +971,6 @@ filelist = {
     "csgo/maps": {
         "directory": True
     },
-    "csgo/resource/csgo_english.txt": {
-        "directory": False,
-        "encoding": "utf16"
-    },
     "csgo/scripts": {
         "directory": True
     },
@@ -934,16 +984,25 @@ filelist = {
     "csgo/scripts/items/items_game_cdn.txt": {
         "directory": False,
         "encoding": None
-    }
+    },
 }
+
+for fileprefix in os.listdir(os.path.join(csgofolder, "resource")):
+    if (re.match("^(csgo|cstrike15)_\w*\.txt$", fileprefix)):
+        languages.append(fileprefix[len(csgofolder) + 1:-4])
+        filelist[f"csgo/resource/{fileprefix}"] = {
+            "directory": False,
+            "encoding": "utf16"
+        }
+
 for path in filelist:
     # check if file exists
     ogpath = path
     nameext = path.replace("/", "", [char for char in path].count("/") - 1)
 
-    filename = nameext[nameext.index("/") + 1:]
+    fileprefix = nameext[nameext.index("/") + 1:]
     if (not filelist[path]["directory"]):
-        filename = filename[:filename.index(".")]
+        fileprefix = fileprefix[:fileprefix.index(".")]
 
     dirs = path.split("/")
     currentdir = os.getcwd()
@@ -962,7 +1021,7 @@ for path in filelist:
         currentdir += f"/{dir}"
 
     if (not found):
-        files[filename] = {
+        files[fileprefix] = {
             "exists": False
         }
         continue
@@ -971,7 +1030,7 @@ for path in filelist:
         path = path.replace("csgo", "cstrike15")
 
     if (filelist[ogpath]["directory"]):
-        files[filename] = {
+        files[fileprefix] = {
             "exists": True,
             "path": path
         }
@@ -985,7 +1044,7 @@ for path in filelist:
     _contents = _file.read()
     _split = _contents.split("\n")
     
-    files[filename] = {
+    files[fileprefix] = {
         "exists": True,
         "path": path,
         "file": _file,
@@ -1026,26 +1085,36 @@ data["DefaultConfig"] = extract.defaultconfig()
 data["MusicKits"] = extract.musickits()
 
 # output
-print("\n")
+patchversion = data["Build"]["PatchVersion"]
+
+if (not settings.quiet):
+    print("\n")
+
 if ("output" not in os.listdir(settings.pydir)):
     os.mkdir(os.path.join(settings.pydir, "output"))
 
-filename = "data.json"
+fileprefix = f"csgo-{patchversion.replace('.', '-')}"
 
-if (filename in os.listdir(os.path.join(settings.pydir, "output"))):
-    overwrite = input("Data previously outputted, do you want to overwrite file? (y/N) ")
+if (f"{fileprefix}.json" in os.listdir(os.path.join(settings.pydir, "output"))):
+    if (settings.quiet):
+        overwrite = "n"
+    else:
+        overwrite = input("Data previously outputted, do you want to overwrite file? (y/N) ")
 
     if (overwrite.lower() != "y"):
         counter = 0
-        while (f"data-{counter}.json" in os.listdir(os.path.join(settings.pydir, "output"))):
+        while (f"{fileprefix}({counter}).json" in os.listdir(os.path.join(settings.pydir, "output"))):
             counter += 1
-        filename = f"data-{counter}.json"
+        fileprefix = f"{fileprefix}({counter})"
 
-outputfile = open(f"{settings.pydir}/output/{filename}", "w")
+outputfile = open(f"{settings.pydir}/output/{fileprefix}.json", "w")
 outputfile.write(json.dumps(data))
 outputfile.close()
-patchversion = data["Build"]["PatchVersion"]
-fullpath = os.path.join(settings.pydir, "output", filename)
+
+if (settings.quiet):
+    exit()
+
+fullpath = os.path.join(settings.pydir, "output", f"{fileprefix}.json")
 print(f"Output file for CSGO Patch Version {patchversion} at {terminal.style.dim}{fullpath}{terminal.style.reset}")
 
 # open directory dialog
