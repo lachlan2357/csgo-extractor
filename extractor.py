@@ -22,7 +22,7 @@ if ("csgo" not in os.listdir() and "cstrike15" in os.listdir()):
 # classes
 class settings:
     version = "0.2.1"
-    builddate = "05/08/2022"
+    builddate = "08/08/2022"
     description = "CSGO Exporter reads game files to produce data about a specific build."
     helpcommands = {
         "-h, --help": "Display this help menu.",
