@@ -21,15 +21,15 @@ if ("csgo" not in os.listdir() and "cstrike15" in os.listdir()):
 
 # classes
 class settings:
-    version = "0.2"
-    builddate = "31/07/2022"
+    version = "0.2.1"
+    builddate = "05/08/2022"
     description = "CSGO Exporter reads game files to produce data about a specific build."
     helpcommands = {
         "-h, --help": "Display this help menu.",
         "-w, --warnings": "Displays warning messages. Can be useful for debugging.",
         "-s, --setup": "Displays steps to setup and use the tool.",
         "-d, --directory": "Specifies a CSGO install directory (uses current directory if flag not present).",
-        "-q, -- quiet": "Quiet Mode. Disables all console outputs, does not overwrite previous exports and does not open directory on completion."
+        "-q, --quiet": "Quiet Mode. Disables all console outputs, does not overwrite previous exports and does not open directory on completion."
     }
     warnings = False
     quiet = False
@@ -87,8 +87,8 @@ class terminal:
 
 class output:
     def start(name:str):
-        #if (settings.quiet):
-            #return
+        if (settings.quiet):
+            return
         print(f"- Extracting {name} info ...", end = None)
         return
 
@@ -133,7 +133,8 @@ class output:
             exit()
 
     def skip(reason:str):
-        print(f"{terminal.style.dim}  \u21B3 Skipping: {reason}{terminal.style.reset}")
+        if (settings.quiet):
+            print(f"{terminal.style.dim}  \u21B3 Skipping: {reason}{terminal.style.reset}")
 
 class csgofile:
     def removeleadingtabs(text:str):
@@ -199,6 +200,16 @@ class csgofile:
             if ([char for char in line].count("\"") >= 3 and re.search("[\t, ]*.*\".*\"[\t, ]*\".*", line)):
                 # if the variable spans multiple lines
                 if ([char for char in line].count("\"") % 2 != 0):
+                    numquotes = 0
+                    for index in range(0, len([char for char in line])):
+                        character = [char for char in line][index]
+                        if character == "\"" and [char for char in line][index - 1] != "\\":
+                            numquotes += 1
+
+                    if numquotes % 2 == 0:
+                        break
+
+
                     # find where the variable ends
                     j = i + 1
                     while ([char for char in lines[j]].count("\"") % 2 == 0):
@@ -887,59 +898,68 @@ class extract:
         output.done()
         return obj
 
+# switches
+skipper = 0
+for i in range(1, len(sys.argv)):
+    if i + skipper >= len(sys.argv):
+        break
+    
+    argument = sys.argv[i + skipper]
+    
+    if (argument in ["-h", "--help"]):
+        print(settings.description)
+        print("\nCommands:")
+
+        for command in settings.helpcommands:
+            print(f"  {terminal.style.dim}{command}{terminal.style.reset} - {settings.helpcommands[command]}")
+
+        exit()
+
+    if (argument in ["-w", "--warnings"]):
+        settings.warnings = True
+        continue
+
+    if (argument in ["-s", "--setup"]):
+        terminaltype = {
+            "Windows": "Open Command Prompt/PowerShell window here",
+            "Linux": "Open in Terminal",
+            "Darwin": "Open Directory in Terminal"
+        }
+        userterminal = terminaltype.get(platform.uname().system, "Open in Terminal")
+        print(f"Setup Steps:\n1. Locate your CSGO Folder in your file manager.\n2. Right Click --> {userterminal}.\n3. Type the command 'python' followed by a space, but don't press enter. \n4. Locate this script in your file manager.\n5. Drag this file onto the terminal window. Execute the command.")
+        exit()
+
+    if (argument in ["-d", "--directory"]):
+        index = i + 1
+
+        try:
+            newdir = sys.argv[index]
+        except:
+            output.error("No directory specified.", True)
+
+        try:
+            os.chdir(newdir)
+        except:
+            output.error("Directory could not be found", True)
+    
+        skipper += 1
+        continue
+
+    if (argument in ["-q", "--quiet"]):
+        settings.quiet = True
+        continue
+
+    output.warn(f"Could not process argument {argument}. Use the --help argument for information about available arguments.", True)
+
 if (not settings.quiet):
     print(f"CSGO Exporter v{settings.version}\nBuild Date {settings.builddate}\n")
-
-# switches
-if ("-h" in sys.argv or "--help" in sys.argv):
-    print(settings.description)
-    print("\nCommands:")
-
-    for command in settings.helpcommands:
-        print(f"  {terminal.style.dim}{command}{terminal.style.reset} - {settings.helpcommands[command]}")
-
-    exit()
-
-if ("-w" in sys.argv or "--warnings" in sys.argv):
-    settings.warnings = True
-
-if ("-s" in sys.argv or "--setup" in sys.argv):
-    terminaltype = {
-        "Windows": "Open Command Prompt/PowerShell window here",
-        "Linux": "Open in Terminal",
-        "Darwin": "Open Directory in Terminal"
-    }
-    userterminal = terminaltype.get(platform.uname().system, "Open in Terminal")
-    print(f"Setup Steps:\n1. Locate your CSGO Folder in your file manager.\n2. Right Click --> {userterminal}.\n3. Type the command 'python' followed by a space, but don't press enter. \n4. Locate this script in your file manager.\n5. Drag this file onto the terminal window. Execute the command.")
-    exit()
-
-if ("-d" in sys.argv or "--directory" in sys.argv):
-    output.process("directory change")
-    index = -1
-    if ("-d" in sys.argv):
-        index = sys.argv.index("-d") + 1
-    else:
-        index = sys.argv.index("--directory") + 1
-
-    if index >= len(sys.argv):
-        output.error("No directory specified.", True)
-
-    newdir = sys.argv[index]
-    try:
-        os.chdir(newdir)
-    except:
-        output.error("Directory could not be found", True)
-    
-    output.done()
-
-if ("-q" in sys.argv or "--quiet" in sys.argv):
-    quiet = True
 
 # check directory to see if it is a csgo directory
 output.check("directory")
 if ("csgo" not in os.listdir() and "cstrike15" not in os.listdir()):
     output.error("This directory does not seem to contain a CSGO Install. Please find your CSGO Install directory and run this program from there.", True)
 
+# static list of files
 filelist = {
     "csgo/bspconvar_whitelist.txt": {
         "directory": False,
@@ -984,9 +1004,10 @@ filelist = {
     "csgo/scripts/items/items_game_cdn.txt": {
         "directory": False,
         "encoding": None
-    },
+    }
 }
 
+# process all language files
 for fileprefix in os.listdir(os.path.join(csgofolder, "resource")):
     if (re.match("^(csgo|cstrike15)_\w*\.txt$", fileprefix)):
         languages.append(fileprefix[len(csgofolder) + 1:-4])
@@ -1085,7 +1106,10 @@ data["DefaultConfig"] = extract.defaultconfig()
 data["MusicKits"] = extract.musickits()
 
 # output
-patchversion = data["Build"]["PatchVersion"]
+try:
+    patchversion = data["Build"]["PatchVersion"]
+except:
+    patchversion = "unknown-version"
 
 if (not settings.quiet):
     print("\n")
