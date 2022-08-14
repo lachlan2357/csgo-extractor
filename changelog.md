@@ -1,3 +1,22 @@
+# v0.3.0
+## New
+- Added --version argument to only output the current program version. Can be useful if embedding into other programs
+- Added an update checker to the beginning of the script to warn if the current version is outdated
+- Replaced the terminal colouring with Colour Splash: my new python module to easily handle terminal colouring
+- Added a check if the required colour_splash and requests modules are installed.
+- Added the option to install missing required modules. Program will exit if they aren't installed
+- Added switch to enable terminal colouring on Windows. By default this is disabled as it causes issues if you are using a default shell such as PowerShell or CMD
+- Files now include a .bat file for Windows users to use as a frontend instead
+
+## Fixed
+- Updated README to feature recent additions and streamline syntax
+- Reordered switches so they execute in a more preferable sequence, providing a more consistent experience
+- Fixed issue where some lines in CSGO language files weren't processed due to an error with detecting where multi-line values start and finish
+- Changed the line endings of both .sh files to Unix as this could have caused issues
+
+## Notes
+- As of this version, the program requires both the `requests` and `colour_splash` modules to be installed
+
 # v0.2.1
 ## New
 - Warnings are thrown if an unrecognised argument is parsed to the program no matter if warnings are enabled

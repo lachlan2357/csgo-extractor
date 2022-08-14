@@ -5,6 +5,7 @@ import json
 import datetime
 import platform
 import subprocess
+import pkgutil
 
 # initialisation
 files = {}
@@ -21,69 +22,21 @@ if ("csgo" not in os.listdir() and "cstrike15" in os.listdir()):
 
 # classes
 class settings:
-    version = "0.2.1"
-    builddate = "08/08/2022"
+    version = "0.3.0"
+    builddate = "14/08/2022"
     description = "CSGO Exporter reads game files to produce data about a specific build."
     helpcommands = {
         "-h, --help": "Display this help menu.",
+        "-v, --version": "Display the version number",
         "-w, --warnings": "Displays warning messages. Can be useful for debugging.",
         "-s, --setup": "Displays steps to setup and use the tool.",
         "-d, --directory": "Specifies a CSGO install directory (uses current directory if flag not present).",
-        "-q, --quiet": "Quiet Mode. Disables all console outputs, does not overwrite previous exports and does not open directory on completion."
+        "-q, --quiet": "Quiet Mode. Disables all console outputs, does not overwrite previous exports and does not open directory on completion.",
+        "-c, --colour": "Force-Enables Colours. This is disabled on Windows by default as in-built shells often don't support it."
     }
     warnings = False
     quiet = False
     pydir = os.path.dirname(os.path.abspath(__file__))
-
-class terminalsettings:
-    escape = "\033[0;"
-    escapeend = "m"
-
-    prefix = {
-        "foreground": 3,
-        "background": 4
-    }
-
-    suffix = {
-        "black": 0,
-        "red": 1,
-        "green": 2,
-        "yellow": 3,
-        "blue": 4,
-        "magenta": 5,
-        "cyan": 6,
-        "white": 7,
-        "reset": 9
-    }
-
-    styleprefix = {
-        "reset": 0,
-        "bright": 1,
-        "dim": 2,
-    }
-
-class terminal:
-    class color:
-        def generate(mode:str, color:str):
-            return f"{terminalsettings.escape}{terminalsettings.prefix[mode]}{terminalsettings.suffix[color]}{terminalsettings.escapeend}"
-
-        black = generate("foreground", "black")
-        red = generate("foreground", "red")
-        green = generate("foreground", "green")
-        yellow = generate("foreground", "yellow")
-        blue = generate("foreground", "blue")
-        magenta = generate("foreground", "magenta")
-        cyan = generate("foreground", "cyan")
-        white = generate("foreground", "white")
-        reset = generate("foreground", "reset")
-
-    class style:
-        def generate(style:str):
-            return f"{terminalsettings.escape}{terminalsettings.styleprefix[style]}{terminalsettings.escapeend}"
-
-        reset = generate("reset")
-        dim = generate("dim")
-        bright = generate("bright")
 
 class output:
     def start(name:str):
@@ -101,7 +54,7 @@ class output:
     def failed():
         if (settings.quiet):
             return
-        print(f"{terminal.color.red}  \u21B3 Failed.{terminal.color.reset}")
+        print(colour_splash.colour("  \u21B3 Failed.", "red"))
 
     def check(name:str):
         if (settings.quiet):
@@ -121,20 +74,23 @@ class output:
     def warn(warning:str, persistant:bool = False):
         if (settings.quiet):
             return
+        
         if (settings.warnings or persistant):
-            print(f"{terminal.color.yellow}  \u21B3 {warning}{terminal.color.reset}")
+            print(colour_splash.colour(f"  \u21B3 {warning}", "yellow"))
     
     def error(error:str, terminate:bool = False):
         if (settings.quiet):
             return
-        print(f"{terminal.color.red}  \u21B3 {error}{terminal.color.reset}")
+        
+        print(colour_splash.colour(f"  \u21B3 {error}", "red"))
+        
         if terminate:
             print("- Exiting ... ")
             exit()
 
     def skip(reason:str):
         if (settings.quiet):
-            print(f"{terminal.style.dim}  \u21B3 Skipping: {reason}{terminal.style.reset}")
+            print(colour_splash.style(f"  \u21B3 Skipping: {reason}", "dim"))
 
 class csgofile:
     def removeleadingtabs(text:str):
@@ -198,21 +154,24 @@ class csgofile:
 
             # option 3: variable
             if ([char for char in line].count("\"") >= 3 and re.search("[\t, ]*.*\".*\"[\t, ]*\".*", line)):
-                # if the variable spans multiple lines
-                if ([char for char in line].count("\"") % 2 != 0):
-                    numquotes = 0
-                    for index in range(0, len([char for char in line])):
-                        character = [char for char in line][index]
-                        if character == "\"" and [char for char in line][index - 1] != "\\":
-                            numquotes += 1
+                numquotes = [char for char in line].count("\"")
 
-                    if numquotes % 2 == 0:
-                        break
+                # check how many quotes there actually are in the line
+                for quotepos in [index.start() for index in re.finditer("\"", line)]:
+                    slashcount = 0
+                    counter = 1
+                    while line[quotepos - counter] == "\\":
+                        slashcount += 1
+                        counter += 1
 
+                    if slashcount % 2 != 0:
+                        numquotes -= 1
 
+                # if the variable spans multiple lines               
+                if (numquotes % 2 != 0):
                     # find where the variable ends
                     j = i + 1
-                    while ([char for char in lines[j]].count("\"") % 2 == 0):
+                    while ([char for char in lines[j].replace("\\\"", "'")].count("\"") % 2 == 0 and lines[j] != "\""):
                         j += 1
                     
                     # addon missing lines
@@ -354,6 +313,20 @@ class csgofile:
                 continue
 
             output.error(f"Line wasn't processed as it could not be categorised: {line}")
+            import pyperclip
+            pyperclip.copy(line)
+            print([char for char in line].count("\""))
+            if ([char for char in line].count("\"") % 2 != 0):
+                numquotes = 0
+                print("two quotes maybe")
+                for index in range(0, len([char for char in line])):
+                    character = [char for char in line][index]
+                    if character == "\"" and [char for char in line][index - 1] != "\\":
+                        numquotes += 1
+
+                print(numquotes)
+
+            exit()
             noprocesslines += 1
         
         if (noprocesslines > 0):
@@ -898,36 +871,61 @@ class extract:
         output.done()
         return obj
 
-# switches
+# check for required non-default-installed packages
+def find_missing_packages():
+    required_packages = ["colour_splash", "requests"]
+    packages = pkgutil.iter_modules()
+
+    found = []
+    for package in packages:
+        if package.name in required_packages:
+            found.append(package.name)
+    return [package for package in required_packages if package not in set(found)]
+
+missing_packages = find_missing_packages()
+if len(missing_packages) > 0:
+    install_string = ""
+    for item in missing_packages:
+        install_string += f"{item} "
+    install_string = install_string[:-1]
+    missing_packages_string = str(missing_packages).replace('[', '').replace(']', '')
+
+    install = input(f"- Python Module{'s' if len(missing_packages) > 1 else ''} {missing_packages_string} {'are' if len(missing_packages) > 1 else 'is'} required. Do you want to install {'them' if len(missing_packages) > 1 else 'it'}? (y/N): ")
+    if install.lower() == "y":
+        output.regular(f"Installing {missing_packages_string} ...")
+        subprocess.call(f"pip install {install_string} -q", shell=True)
+        output.done()
+    else:
+        output.regular(f"Missing Module{'s' if len(missing_packages) > 1 else ''} {missing_packages_string}. Please install {'them' if len(missing_packages) > 1 else 'it'} using 'pip install {install_string}'.")
+        print("- Exiting ... ")
+        exit()
+print("")
+
+# import required packages that aren't downloaded by default
+import colour_splash
+import requests
+
+# process switches
+goto = None
 skipper = 0
 for i in range(1, len(sys.argv)):
     if i + skipper >= len(sys.argv):
         break
     
     argument = sys.argv[i + skipper]
+
+    # settings
+    if (argument in ["-q", "--quiet"]):
+        settings.quiet = True
+        continue
+
+    if (argument in ["-c", "--colour"]):
+        colour_splash.settings.force_colours = True
+        continue
     
-    if (argument in ["-h", "--help"]):
-        print(settings.description)
-        print("\nCommands:")
-
-        for command in settings.helpcommands:
-            print(f"  {terminal.style.dim}{command}{terminal.style.reset} - {settings.helpcommands[command]}")
-
-        exit()
-
     if (argument in ["-w", "--warnings"]):
         settings.warnings = True
         continue
-
-    if (argument in ["-s", "--setup"]):
-        terminaltype = {
-            "Windows": "Open Command Prompt/PowerShell window here",
-            "Linux": "Open in Terminal",
-            "Darwin": "Open Directory in Terminal"
-        }
-        userterminal = terminaltype.get(platform.uname().system, "Open in Terminal")
-        print(f"Setup Steps:\n1. Locate your CSGO Folder in your file manager.\n2. Right Click --> {userterminal}.\n3. Type the command 'python' followed by a space, but don't press enter. \n4. Locate this script in your file manager.\n5. Drag this file onto the terminal window. Execute the command.")
-        exit()
 
     if (argument in ["-d", "--directory"]):
         index = i + 1
@@ -945,14 +943,87 @@ for i in range(1, len(sys.argv)):
         skipper += 1
         continue
 
-    if (argument in ["-q", "--quiet"]):
-        settings.quiet = True
+    # internal exiting functions
+    if (argument in ["-h", "--help"]):
+        goto = "-h" if goto == None else goto
+        continue
+
+    if (argument in ["-s", "--setup"]):
+        goto = "-s" if goto == None else goto
+        continue
+    
+    if (argument in ["-v", "--version"]):
+        goto = "-v" if goto == None else goto
         continue
 
     output.warn(f"Could not process argument {argument}. Use the --help argument for information about available arguments.", True)
 
+# print opening statement
 if (not settings.quiet):
-    print(f"CSGO Exporter v{settings.version}\nBuild Date {settings.builddate}\n")
+    print(f"CSGO Exporter v{settings.version}")
+
+    failed = False
+    try:
+        import requests
+    except:
+        print("Missing Module 'requests'. Please install it using 'pip install colour_splash'.")
+        failed = True
+        
+    if not failed:
+        # check for updates
+        online_version = requests.get("https://raw.githubusercontent.com/lachlan2357/csgo-extractor/main/version.txt")
+        new_version = False
+        if (online_version.status_code == 200):
+            newest_version = online_version.text
+            current_version = settings.version
+
+            newest_version_string = ""
+            current_version_string = ""
+
+            for number in newest_version.split("."):
+                if len(number) == 1:
+                    newest_version_string += f"0{number}"
+                    continue
+                newest_version_string += str(number)
+            
+            for number in current_version.split("."):
+                if len(number) == 1:
+                    current_version_string += f"0{number}"
+                    continue
+                current_version_string += str(number)
+
+            if int(newest_version_string) > int(current_version_string):
+                new_version = True
+
+        if new_version:
+            output.warn(f"Version {online_version.text} is available for download at https://github.com/lachlan2357/csgo-extractor (current version {settings.version})", True)
+
+    print(f"Build Date {settings.builddate}\n")
+
+# select alternate program course if applicable
+if (goto):
+    if (goto == "-h"):
+        print(settings.description)
+        print("\nCommands:")
+
+        for command in settings.helpcommands:
+            print(f"  {colour_splash.style(command, 'dim')} - {settings.helpcommands[command]}")
+
+        exit()
+
+    if (goto == "-s"):
+        terminaltype = {
+            "Windows": "Open Command Prompt/PowerShell window here",
+            "Linux": "Open in Terminal",
+            "Darwin": "Open Directory in Terminal"
+        }
+        userterminal = terminaltype.get(platform.uname().system, "Open in Terminal")
+        print(f"Setup Steps:\n1. Locate your CSGO Folder in your file manager.\n2. Right Click --> {userterminal}.\n3. Type the command 'python' followed by a space, but don't press enter. \n4. Locate this script in your file manager.\n5. Drag this file onto the terminal window. Execute the command.")
+        exit()
+
+    if (goto == "-v"):
+        print(settings.version)
+        exit()
 
 # check directory to see if it is a csgo directory
 output.check("directory")
@@ -1089,6 +1160,7 @@ for file in filelist:
         continue
 
     output.regular(f"Processing {nameext} ...")
+    #if key == "csgo_vietnamese":
     fileobjs[key] = csgofile.convert(files[key]["split"])
 output.done()
 
@@ -1139,7 +1211,7 @@ if (settings.quiet):
     exit()
 
 fullpath = os.path.join(settings.pydir, "output", f"{fileprefix}.json")
-print(f"Output file for CSGO Patch Version {patchversion} at {terminal.style.dim}{fullpath}{terminal.style.reset}")
+print(f"Output file for CSGO Patch Version {patchversion} at {colour_splash.style(fullpath, 'dim')}")
 
 # open directory dialog
 input = input("Open Directory? (y/N): ")
